@@ -1,0 +1,6 @@
+@Splitit.ActorAPI.Web_HostAddress = http://localhost:5171
+
+GET {{Splitit.ActorAPI.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

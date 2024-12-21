@@ -1,0 +1,9 @@
+﻿public class ActorModel
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; }
+    public string Details { get; set; }
+    public string Type { get; set; } = "IMDB";
+    public int Rank { get; set; }
+    public string Source { get; set; } = "Movie";
+}

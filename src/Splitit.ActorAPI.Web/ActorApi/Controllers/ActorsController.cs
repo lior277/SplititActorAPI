@@ -6,7 +6,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
 {
     [ApiController]
     [Route("api/v1/actors")]
-    [Authorize] 
     public class ActorsController : ControllerBase
     {
         private readonly AppDbContext _context;

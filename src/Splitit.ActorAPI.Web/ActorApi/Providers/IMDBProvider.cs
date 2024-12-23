@@ -1,115 +1,92 @@
-﻿using HtmlAgilityPack;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Playwright;
 
-public class IMDBProvider
+public class IMDBProvider : IActorProvider
 {
-    public HtmlWeb CreateHtmlWebClient()
+    private readonly IPlaywrightService _playwrightService;
+
+    public IMDBProvider(IPlaywrightService playwrightService)
     {
-        return new HtmlWeb
-        {
-            PreRequest = request =>
-            {
-                request.Headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-                request.Timeout = 100000; // Set timeout to 100 seconds
-                return true;
-            }
-        };
+        _playwrightService = playwrightService;
     }
-
-    private async Task<HtmlDocument> LoadDocumentWithRetriesAsync(string url, int maxRetries = 3)
-    {
-        var web = CreateHtmlWebClient();
-        int retries = 0;
-
-        while (true)
-        {
-            try
-            {
-                return await web.LoadFromWebAsync(url);
-            }
-            catch (Exception ex) when (retries < maxRetries)
-            {
-                retries++;
-                Console.WriteLine($"Retry {retries}/{maxRetries}: {ex.Message}");
-                await Task.Delay(1000); // Wait before retrying
-            }
-            catch
-            {
-                throw; // Re-throw after max retries
-            }
-        }
-    }
-
 
     public async Task<List<ActorModel>> ScrapeActorsAsync()
     {
         var actors = new List<ActorModel>();
-        var web = CreateHtmlWebClient();
-        var document = await LoadDocumentWithRetriesAsync("https://www.imdb.com/chart/top/");
+        var page = await _playwrightService.GetPageAsync("https://www.imdb.com/chart/top/");
 
-        // XPath to select list items containing movie data
-        var movieNodes = document.DocumentNode.SelectNodes("//li[contains(@class, 'ipc-metadata-list-summary-item')]");
-
-        if (movieNodes == null)
+        try
         {
-            Console.WriteLine("No movie nodes found on the page.");
-            return actors;
-        }
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            var movieNodes = await page.QuerySelectorAllAsync("li[class*='ipc-metadata-list-summary-item']");
 
-        foreach (var node in movieNodes)
-        {
-            try
+            if (movieNodes.Count == 0)
             {
-                // Extract movie ID from the href attribute
-                var detailsNode = node.SelectSingleNode(".//a[contains(@class, 'ipc-title-link-wrapper')]");
-                var href = detailsNode?.GetAttributeValue("href", "");
-                var movieId = href?.Split('/')[2]; // Extract ID 
+                Console.WriteLine("No movie nodes found on the IMDB page.");
+                return actors;
+            }
 
-                // Extract title and rank
-                var titleNode = detailsNode?.SelectSingleNode(".//h3[@class='ipc-title__text']");
-                var fullTitle = titleNode?.InnerText.Trim();
-                var rank = Convert.ToInt32(fullTitle?.Split('.')[0]); // Extract rank
-                var title = fullTitle?.Substring(fullTitle.IndexOf(' ') + 1); // Extract title
-
-                // Extract year
-                var yearNode = node.SelectSingleNode(".//span[contains(@class, 'cli-title-metadata-item')]");
-                var year = yearNode?.InnerText.Trim(); // e.g., "1994"
-
-                // Extract rating
-                var ratingNode = node.SelectSingleNode(".//span[contains(@class, 'ipc-rating-star--rating')]");
-                var ratingText = ratingNode?.InnerText.Trim();
-
-                actors.Add(new ActorModel
+            foreach (var node in movieNodes)
+            {
+                try
                 {
-                    Id = movieId,
-                    Name = title,
-                    Rank = rank,
-                    Details = $"{year} {ratingText}",
-                });
+                    var movieId = await ExtractMovieIdAsync(node);
+                    var (title, rank) = await ExtractTitleAndRankAsync(node);
+                    var year = await ExtractYearAsync(node);
+                    var rating = await ExtractRatingAsync(node);
+
+                    actors.Add(new ActorModel
+                    {
+                        Id = movieId,
+                        Name = title,
+                        Rank = rank,
+                        Details = $"Year: {year}, Rating: {rating}",
+                        Type = "Movie",
+                        Source = "IMDB"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing IMDB node: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error processing node: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to scrape IMDB: {ex.Message}");
         }
 
         return actors;
     }
 
-    // Pagination method
-    public List<ActorModel> GetPaginatedActors(List<ActorModel> actors, int page, int pageSize)
+    private async Task<string?> ExtractMovieIdAsync(IElementHandle node)
     {
-        if (page < 1 || pageSize < 1)
-        {
-            throw new ArgumentException("Page and pageSize must be greater than 0.");
-        }
+        var detailsNode = await node.QuerySelectorAsync("a.ipc-title-link-wrapper");
+        var href = await detailsNode?.GetAttributeAsync("href");
+        return href?.Split('/')[2]; // Extract ID
+    }
 
-        return actors
-            .Skip((page - 1) * pageSize) // Skip records based on the current page
-            .Take(pageSize)             // Take only the records for the requested page
-            .ToList();
+    private async Task<(string? Title, int Rank)> ExtractTitleAndRankAsync(IElementHandle node)
+    {
+        var detailsNode = await node.QuerySelectorAsync("a.ipc-title-link-wrapper");
+        var titleNode = await detailsNode?.QuerySelectorAsync("h3.ipc-title__text");
+        var fullTitle = await titleNode?.InnerTextAsync();
+        var rank = int.Parse(fullTitle?.Split('.')[0].Trim() ?? "0");
+        var title = fullTitle?.Substring(fullTitle.IndexOf(' ') + 1).Trim();
+        return (title, rank);
+    }
+
+    private async Task<string?> ExtractYearAsync(IElementHandle node)
+    {
+        var yearNode = await node.QuerySelectorAsync("span[class*='cli-title-metadata-item']");
+        return await yearNode?.InnerTextAsync();
+    }
+
+    private async Task<string?> ExtractRatingAsync(IElementHandle node)
+    {
+        var ratingNode = await node.QuerySelectorAsync("span.ipc-rating-star--rating");
+        return await ratingNode?.InnerTextAsync();
     }
 }

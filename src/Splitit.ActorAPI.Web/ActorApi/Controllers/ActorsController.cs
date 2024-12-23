@@ -1,136 +1,174 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Linq;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
-[ApiController]
-[Route("api/v1/actors")]
-public class ActorsController : ControllerBase
+namespace Splitit.ActorAPI.Web.ActorApi.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public ActorsController(AppDbContext context)
+    [ApiController]
+    [Route("api/v1/actors")]
+    [Authorize] 
+    public class ActorsController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
+        private readonly ILogger<ActorsController> _logger;
+        private readonly IEnumerable<IActorProvider> _actorProviders;
 
-    // 1. Retrieve a list of all actors with filtering and pagination
-    // GET: api/v1/actors
-    [HttpGet]
-    public IActionResult GetActors(
-        [FromQuery] string? name,
-        [FromQuery] int? minRank,
-        [FromQuery] int? maxRank,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
-    {
-        if (page < 1 || pageSize < 1)
+        public ActorsController(AppDbContext context, ILogger<ActorsController>
+            logger, IEnumerable<IActorProvider> actorProviders)
         {
-            return BadRequest("Page and pageSize must be greater than 0.");
+            _context = context;
+            _logger = logger;
+            _actorProviders = actorProviders;
         }
 
-        var query = _context.Actors.AsQueryable();
-
-        // Apply filters
-        if (!string.IsNullOrEmpty(name))
+        [HttpGet("scrape")]
+        [Authorize]
+        public async Task<IActionResult> ScrapeActors([FromQuery] string provider)
         {
-            query = query.Where(a => a.Name.Contains(name));
+            try
+            {
+                var selectedProvider = _actorProviders
+                    .FirstOrDefault(p => p
+                    .GetType()
+                    .Name.Equals(provider, StringComparison.OrdinalIgnoreCase));
+
+                if (selectedProvider == null)
+                {
+                    _logger.LogWarning("Invalid provider specified: {Provider}", provider);
+
+                    return BadRequest(new
+                    {
+                        Message = "Invalid provider specified. Use" +
+                        " 'IMDBProvider' or 'RottenTomatoesProvider'."
+                    });
+                }
+
+                _logger.LogInformation("Scraping actors using provider: {Provider}", provider);
+
+                var actors = await selectedProvider.ScrapeActorsAsync();
+
+                _logger.LogInformation("Successfully scraped {Count}" +
+                    " actors from {Provider}", actors.Count, provider);
+
+                return Ok(actors);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error scraping actors from provider: {Provider}", provider);
+                return StatusCode(500, "An error occurred while scraping data.");
+            }
         }
 
-        if (minRank.HasValue)
+        [HttpGet]
+        [Authorize]
+        public IActionResult GetActors([FromQuery] string? name,
+            [FromQuery] int? minRank, [FromQuery] int? maxRank)
         {
-            query = query.Where(a => a.Rank >= minRank.Value);
+            var query = _context.Actors.AsQueryable();
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                query = query.Where(a => EF.Functions.Like(a.Name, $"%{name}%"));
+            }
+
+            if (minRank.HasValue)
+            {
+                query = query.Where(a => a.Rank >= minRank.Value);
+            }
+
+            if (maxRank.HasValue)
+            {
+                query = query.Where(a => a.Rank <= maxRank.Value);
+            }
+
+            var actors = query
+                .OrderBy(a => a.Id)
+                .Select(a => new { a.Name, a.Id })
+                .ToList();
+
+            return Ok(actors);
         }
 
-        if (maxRank.HasValue)
+        [HttpGet("{id}")]
+        [Authorize]
+        public IActionResult GetActor(string id)
         {
-            query = query.Where(a => a.Rank <= maxRank.Value);
+            var actor = _context.Actors.Find(id);
+            if (actor == null)
+            {
+                _logger.LogWarning("Actor with ID {Id} not found", id);
+                return NotFound(new { Message = "Actor not found." });
+            }
+
+            return Ok(actor);
         }
 
-        // Pagination
-        var totalActors = query.Count();
-        var totalPages = (int)Math.Ceiling(totalActors / (double)pageSize);
-        var actors = query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => new { a.Id, a.Name }) // Only return Id and Name
-            .ToList();
-
-        var result = new
+        [HttpPost]
+        [Authorize]
+        public IActionResult AddActor([FromBody] ActorModel actor)
         {
-            TotalActors = totalActors,
-            TotalPages = totalPages,
-            CurrentPage = page,
-            PageSize = pageSize,
-            Actors = actors
-        };
+            if (actor == null)
+            {
+                return BadRequest(new { Message = "Actor data is required." });
+            }
 
-        return Ok(result);
-    }
+            if (_context.Actors.Any(a => a.Rank == actor.Rank))
+            {
+                return BadRequest(new { Message = "Duplicate rank is not allowed." });
+            }
 
-    // 2. Retrieve details for a specific actor
-    // GET: api/v1/actors/{id}
-    [HttpGet("{id}")]
-    public IActionResult GetActor(string id)
-    {
-        var actor = _context.Actors.Find(id);
-        if (actor == null) return NotFound("Actor not found.");
+            _context.Actors.Add(actor);
+            _context.SaveChanges();
 
-        return Ok(actor);
-    }
-
-    // 3. Add a new actor
-    // POST: api/v1/actors
-    [HttpPost]
-    public IActionResult AddActor([FromBody] ActorModel actor)
-    {
-        if (actor == null) return BadRequest("Actor data is required.");
-
-        if (_context.Actors.Any(a => a.Rank == actor.Rank))
-        {
-            return BadRequest("Duplicate rank not allowed.");
+            return CreatedAtAction(nameof(GetActor), new { id = actor.Id }, actor);
         }
 
-        _context.Actors.Add(actor);
-        _context.SaveChanges();
-
-        return CreatedAtAction(nameof(GetActor), new { id = actor.Id }, actor);
-    }
-
-    // 4. Update an existing actor
-    // PUT: api/v1/actors/{id}
-    [HttpPut("{id}")]
-    public IActionResult UpdateActor(string id, [FromBody] ActorModel updatedActor)
-    {
-        if (updatedActor == null) return BadRequest("Actor data is required.");
-
-        var actor = _context.Actors.Find(id);
-        if (actor == null) return NotFound("Actor not found.");
-
-        if (_context.Actors.Any(a => a.Rank == updatedActor.Rank && a.Id != id))
+        [HttpPut("{id}")]
+        [Authorize]
+        public IActionResult UpdateActor(string id, [FromBody] ActorModel updatedActor)
         {
-            return BadRequest("Duplicate rank not allowed.");
+            if (updatedActor == null)
+            {
+                return BadRequest("Actor data is required.");
+            }
+
+            var actor = _context.Actors.Find(id);
+
+            if (actor == null)
+            {
+                return NotFound("Actor not found.");
+            }
+
+            if (_context.Actors.Any(a => a.Rank == updatedActor.Rank && a.Id != id))
+            {
+                return BadRequest("Duplicate rank not allowed.");
+            }
+
+            actor.Name = updatedActor.Name;
+            actor.Details = updatedActor.Details;
+            actor.Type = updatedActor.Type;
+            actor.Rank = updatedActor.Rank;
+            actor.Source = updatedActor.Source;
+
+            _context.SaveChanges();
+
+            return NoContent();
         }
 
-        // Update actor details
-        actor.Name = updatedActor.Name;
-        actor.Details = updatedActor.Details;
-        actor.Type = updatedActor.Type;
-        actor.Rank = updatedActor.Rank;
-        actor.Source = updatedActor.Source;
+        [HttpDelete("{id}")]
+        [Authorize]
+        public IActionResult DeleteActor(string id)
+        {
+            var actor = _context.Actors.Find(id);
+            if (actor == null)
+            {
+                _logger.LogWarning("Actor with ID {Id} not found for deletion", id);
+                return NotFound(new { Message = "Actor not found." });
+            }
 
-        _context.SaveChanges();
-        return NoContent();
-    }
-
-    // 5. Delete an actor
-    // DELETE: api/v1/actors/{id}
-    [HttpDelete("{id}")]
-    public IActionResult DeleteActor(string id)
-    {
-        var actor = _context.Actors.Find(id);
-        if (actor == null) return NotFound("Actor not found.");
-
-        _context.Actors.Remove(actor);
-        _context.SaveChanges();
-        return NoContent();
+            _context.Actors.Remove(actor);
+            _context.SaveChanges();
+            return NoContent();
+        }
     }
 }

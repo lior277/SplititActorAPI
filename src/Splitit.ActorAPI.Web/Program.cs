@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Splitit.ActorAPI.Web.ActorApi.Extensions;
-using Splitit.ActorAPI.Web.ActorApi.Filter;
-using Splitit.ActorAPI.Web.ActorApi.Handlers;
+using Splitit.ActorAPI.Web.handler;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,29 +32,36 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Splitit.ActorAPI",
         Version = "1.0.0",
-        Description = "API for managing and scraping actor information from various sources."
+        Description = "API for managing and scraping actor information."
     });
 
-    // Add Bearer token security definition
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter 'Bearer' followed by your token in the text input below.\n\nExample: `Bearer 12345abcdef`"
+        Description = "Enter 'Bearer' followed by your token."
     });
 
-    // Register the operation filter
-    options.OperationFilter<AuthorizeCheckOperationFilter>();
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
-
-
-// Add custom Bearer authentication scheme
-builder.Services.AddAuthentication("Bearer")
-    .AddScheme<AuthenticationSchemeOptions, BearerTokenAuthenticationHandler>("Bearer", options => { });
+builder.Services.AddAuthentication("Bearer") // Set the default scheme to "Bearer"
+    .AddScheme<AuthenticationSchemeOptions, CustomAuthenticationHandler>("Bearer", options => { });
 
 var app = builder.Build();
 

@@ -1,10 +1,15 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Splitit.ActorAPI.Web.ActorApi.Extensions;
-using Splitit.ActorAPI.Web.handler;
+using Splitit.ActorAPI.Web.ActorApi.Handler;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container
+builder.Services.AddControllers();
 
 // Configure Kestrel
 builder.WebHost.UseKestrel()
@@ -14,18 +19,15 @@ builder.WebHost.UseKestrel()
         options.ListenAnyIP(7262, listenOptions => listenOptions.UseHttps()); // HTTPS
     });
 
-// Add services to the container
-builder.Services.AddControllers();
-
+// Configure In-Memory Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseInMemoryDatabase("ActorsDb"));
 
-// Register application services using extension method
+// Register custom application services
 builder.Services.AddApplicationServices(builder.Configuration);
 
-// Add Swagger and API Explorer for API documentation
+// Configure Swagger with Bearer token support
 builder.Services.AddEndpointsApiExplorer();
-
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -40,8 +42,8 @@ builder.Services.AddSwaggerGen(options =>
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT",
-        Description = "Enter 'Bearer' followed by your token."
+        BearerFormat = "JWT",  // Change to custom format if required
+        Description = "Enter 'Bearer' followed by your token (e.g., Bearer abc123)."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -53,15 +55,29 @@ builder.Services.AddSwaggerGen(options =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
-                }
+                },
+                Scheme = "bearer",
+                Name = "Authorization",
+                In = ParameterLocation.Header
             },
-            Array.Empty<string>()
+            Array.Empty<string>() // No specific scopes required
         }
     });
 });
 
-builder.Services.AddAuthentication("Bearer") // Set the default scheme to "Bearer"
-    .AddScheme<AuthenticationSchemeOptions, CustomAuthenticationHandler>("Bearer", options => { });
+// Add custom Bearer authentication (skipping JWT validation)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = "Bearer";
+    options.DefaultChallengeScheme = "Bearer";
+})
+.AddScheme<AuthenticationSchemeOptions, CustomBearerAuthenticationHandler>("Bearer", options => { });
+
+// Register HttpClient for dependency injection
+builder.Services.AddHttpClient();
+
+// Add other application services
+builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();
 
@@ -76,27 +92,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Splitit.ActorAPI v1");
-        options.DefaultModelsExpandDepth(-1); // Disable model expansion
-    });
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map controller endpoints
 app.MapControllers();
-
-// Create a logger instance and log service status after app is built
-using (var scope = app.Services.CreateScope())
-{
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("Service is up and running on URLs: {Urls}", app.Urls);
-}
 
 app.Run();

@@ -6,6 +6,7 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
 {
     [ApiController]
     [Route("api/v1/actors")]
+    [Authorize]
     public class ActorsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,7 +22,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpGet("scrape")]
-        [Authorize]
         public async Task<IActionResult> ScrapeActors([FromQuery] string provider)
         {
             try
@@ -59,7 +59,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpGet]
-        [Authorize]
         public IActionResult GetActors([FromQuery] string? name,
             [FromQuery] int? minRank, [FromQuery] int? maxRank)
         {
@@ -89,7 +88,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize]
         public IActionResult GetActor(string id)
         {
             var actor = _context.Actors.Find(id);
@@ -103,7 +101,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpPost]
-        [Authorize]
         public IActionResult AddActor([FromBody] ActorModel actor)
         {
             if (actor == null)
@@ -123,7 +120,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
         public IActionResult UpdateActor(string id, [FromBody] ActorModel updatedActor)
         {
             if (updatedActor == null)
@@ -155,7 +151,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
         public IActionResult DeleteActor(string id)
         {
             var actor = _context.Actors.Find(id);

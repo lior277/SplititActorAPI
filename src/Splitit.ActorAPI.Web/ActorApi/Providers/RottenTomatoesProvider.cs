@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 
 public class RottenTomatoesProvider : IActorProvider
 {
     private readonly IPlaywrightService _playwrightService;
+    private readonly ILogger<RottenTomatoesProvider> _logger;
 
-    public RottenTomatoesProvider(IPlaywrightService playwrightService)
+    public RottenTomatoesProvider(IPlaywrightService playwrightService, ILogger<RottenTomatoesProvider> logger)
     {
         _playwrightService = playwrightService;
+        _logger = logger;
     }
 
     public async Task<List<ActorModel>> ScrapeActorsAsync()
@@ -23,13 +26,11 @@ public class RottenTomatoesProvider : IActorProvider
 
             while (true)
             {
-                // await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-
                 var movieNodes = await page.QuerySelectorAllAsync(".countdown-item .article_movie_title");
 
                 if (movieNodes.Count == 0)
                 {
-                    Console.WriteLine("No movie nodes found on this page.");
+                    _logger.LogWarning("No movie nodes found on this page.");
                     break;
                 }
 
@@ -59,7 +60,7 @@ public class RottenTomatoesProvider : IActorProvider
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error processing Rotten Tomatoes node: {ex.Message}");
+                        _logger.LogError(ex, "Error processing Rotten Tomatoes node.");
                     }
                 }
 
@@ -74,7 +75,7 @@ public class RottenTomatoesProvider : IActorProvider
                         var nextUrl = await button.GetAttributeAsync("href");
                         if (!string.IsNullOrEmpty(nextUrl))
                         {
-                            Console.WriteLine($"Navigating to next page: {nextUrl}");
+                            _logger.LogInformation("Navigating to next page: {NextUrl}", nextUrl);
                             await page.GotoAsync(nextUrl);
                             navigatedToNextPage = true;
                         }
@@ -84,14 +85,14 @@ public class RottenTomatoesProvider : IActorProvider
 
                 if (!navigatedToNextPage)
                 {
-                    Console.WriteLine("No more pages to scrape.");
+                    _logger.LogInformation("No more pages to scrape.");
                     break;
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to scrape Rotten Tomatoes: {ex.Message}");
+            _logger.LogError(ex, "Failed to scrape Rotten Tomatoes.");
         }
 
         return actors;

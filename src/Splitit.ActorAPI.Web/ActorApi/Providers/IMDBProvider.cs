@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Playwright;
+﻿using Microsoft.Playwright;
 
 public class IMDBProvider : IActorProvider
 {
     private readonly IPlaywrightService _playwrightService;
+    private readonly ILogger<IMDBProvider> _logger;
 
-    public IMDBProvider(IPlaywrightService playwrightService)
+    public IMDBProvider(IPlaywrightService playwrightService, ILogger<IMDBProvider> logger)
     {
         _playwrightService = playwrightService;
+        _logger = logger;
     }
 
     public async Task<List<ActorModel>> ScrapeActorsAsync()
@@ -24,7 +23,7 @@ public class IMDBProvider : IActorProvider
 
             if (movieNodes.Count == 0)
             {
-                Console.WriteLine("No movie nodes found on the IMDB page.");
+                _logger.LogWarning("No movie nodes found on the IMDB page.");
                 return actors;
             }
 
@@ -49,13 +48,13 @@ public class IMDBProvider : IActorProvider
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error processing IMDB node: {ex.Message}");
+                    _logger.LogError(ex, "Error processing IMDB node.");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to scrape IMDB: {ex.Message}");
+            _logger.LogError(ex, "Failed to scrape IMDB.");
         }
 
         return actors;
@@ -65,6 +64,7 @@ public class IMDBProvider : IActorProvider
     {
         var detailsNode = await node.QuerySelectorAsync("a.ipc-title-link-wrapper");
         var href = await detailsNode?.GetAttributeAsync("href");
+
         return href?.Split('/')[2]; // Extract ID
     }
 
@@ -75,18 +75,21 @@ public class IMDBProvider : IActorProvider
         var fullTitle = await titleNode?.InnerTextAsync();
         var rank = int.Parse(fullTitle?.Split('.')[0].Trim() ?? "0");
         var title = fullTitle?.Substring(fullTitle.IndexOf(' ') + 1).Trim();
+
         return (title, rank);
     }
 
     private async Task<string?> ExtractYearAsync(IElementHandle node)
     {
         var yearNode = await node.QuerySelectorAsync("span[class*='cli-title-metadata-item']");
+
         return await yearNode?.InnerTextAsync();
     }
 
     private async Task<string?> ExtractRatingAsync(IElementHandle node)
     {
         var ratingNode = await node.QuerySelectorAsync("span.ipc-rating-star--rating");
+
         return await ratingNode?.InnerTextAsync();
     }
 }

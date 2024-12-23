@@ -23,13 +23,16 @@ public class ActorRepository : IActorRepository
 
                 if (actors != null && actors.Any())
                 {
-                    var newActors = actors.Where(actor => !_context.Actors.Any(existing => existing.Id == actor.Id));
+                    var newActors = actors.Where(actor =>
+                    !_context.Actors.Any(existing => existing.Id == actor.Id));
 
                     if (newActors.Any())
                     {
                         _context.Actors.AddRange(newActors);
                         await _context.SaveChangesAsync();
-                        _logger.LogInformation($"{newActors.Count()} actors seeded from {provider.GetType().Name}.");
+
+                        _logger.LogInformation($"{newActors.Count()}" +
+                            $" actors seeded from {provider.GetType().Name}.");
                     }
                     else
                     {

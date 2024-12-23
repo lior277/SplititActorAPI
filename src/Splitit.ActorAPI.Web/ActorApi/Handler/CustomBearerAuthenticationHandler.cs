@@ -10,9 +10,8 @@ namespace Splitit.ActorAPI.Web.ActorApi.Handler
         public CustomBearerAuthenticationHandler(
             IOptionsMonitor<AuthenticationSchemeOptions> options,
             ILoggerFactory logger,
-            UrlEncoder encoder,
-            ISystemClock clock)
-            : base(options, logger, encoder, clock)
+            UrlEncoder encoder)
+            : base(options, logger, encoder)
         { }
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -25,16 +24,8 @@ namespace Splitit.ActorAPI.Web.ActorApi.Handler
                 return Task.FromResult(AuthenticateResult.Fail("Authorization token is missing or invalid."));
             }
 
-            // For example, check if the token is the correct format or matches a known value
-            var claims = new[]
-            {
-            new Claim(ClaimTypes.Name, "AuthenticatedUser"),
-            // You can add more claims based on your requirements
-        };
-
-            var identity = new ClaimsIdentity(claims, "Bearer");
-            var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, "Bearer");
+            // You can just create a successful authentication ticket without adding claims
+            var ticket = new AuthenticationTicket(new ClaimsPrincipal(), "Bearer");
 
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }

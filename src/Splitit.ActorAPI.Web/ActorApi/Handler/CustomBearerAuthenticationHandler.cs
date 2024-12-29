@@ -18,13 +18,11 @@ namespace Splitit.ActorAPI.Web.ActorApi.Handler
         {
             var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", string.Empty);
 
-            // Simple validation logic or custom processing
             if (string.IsNullOrEmpty(token))
             {
                 return Task.FromResult(AuthenticateResult.Fail("Authorization token is missing or invalid."));
             }
 
-            // You can just create a successful authentication ticket without adding claims
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(), "Bearer");
 
             return Task.FromResult(AuthenticateResult.Success(ticket));

@@ -7,26 +7,20 @@ using Splitit.ActorAPI.Web.ActorApi.Extensions;
 using Splitit.ActorAPI.Web.ActorApi.Handler;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container
 builder.Services.AddControllers();
 
-// Configure Kestrel
 builder.WebHost.UseKestrel()
     .ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(5171); // HTTP
-        options.ListenAnyIP(7262, listenOptions => listenOptions.UseHttps()); // HTTPS
+        options.ListenAnyIP(5171); 
+        options.ListenAnyIP(7262, listenOptions => listenOptions.UseHttps()); 
     });
 
-// Configure In-Memory Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseInMemoryDatabase("ActorsDb"));
 
-// Register custom application services
 builder.Services.AddApplicationServices(builder.Configuration);
 
-// Configure Swagger with Bearer token support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -42,7 +36,7 @@ builder.Services.AddSwaggerGen(options =>
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT",  // Change to custom format if required
+        BearerFormat = "JWT",  
         Description = "Enter 'Bearer' followed by your token (e.g., Bearer abc123)."
     });
 
@@ -65,7 +59,6 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Add custom Bearer authentication (skipping JWT validation)
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = "Bearer";
@@ -73,15 +66,12 @@ builder.Services.AddAuthentication(options =>
 })
 .AddScheme<AuthenticationSchemeOptions, CustomBearerAuthenticationHandler>("Bearer", options => { });
 
-// Register HttpClient for dependency injection
 builder.Services.AddHttpClient();
 
-// Add other application services
 builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();
 
-// Seed data asynchronously during app startup
 using (var scope = app.Services.CreateScope())
 {
     var actorRepository = scope.ServiceProvider.GetRequiredService<IActorRepository>();
@@ -91,7 +81,6 @@ using (var scope = app.Services.CreateScope())
     await actorRepository.SeedDataAsync();
 }
 
-// Configure the HTTP request pipeline
 app.UseSwagger();
 app.UseSwaggerUI();
 

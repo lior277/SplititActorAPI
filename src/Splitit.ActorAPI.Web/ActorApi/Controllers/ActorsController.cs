@@ -53,6 +53,7 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error scraping actors from provider: {Provider}", provider);
+
                 return StatusCode(500, "An error occurred while scraping data.");
             }
         }

@@ -1,4 +1,6 @@
-﻿namespace Splitit.ActorAPI.Web.ActorApi.Extensions
+﻿using Splitit.ActorAPI.Web.ActorApi.Repositories;
+
+namespace Splitit.ActorAPI.Web.ActorApi.Extensions
 {
     public static class ServiceCollectionExtensions
     {

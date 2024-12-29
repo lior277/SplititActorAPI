@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Splitit.ActorAPI.Web.ActorApi.Extensions;
@@ -12,8 +10,8 @@ builder.Services.AddControllers();
 builder.WebHost.UseKestrel()
     .ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(5171); 
-        options.ListenAnyIP(7262, listenOptions => listenOptions.UseHttps()); 
+        options.ListenAnyIP(5171);
+        options.ListenAnyIP(7262, listenOptions => listenOptions.UseHttps());
     });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -36,7 +34,7 @@ builder.Services.AddSwaggerGen(options =>
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT",  
+        BearerFormat = "JWT",
         Description = "Enter 'Bearer' followed by your token."
     });
 
@@ -54,7 +52,7 @@ builder.Services.AddSwaggerGen(options =>
                 Name = "Authorization",
                 In = ParameterLocation.Header
             },
-            Array.Empty<string>() 
+            Array.Empty<string>()
         }
     });
 });
@@ -67,6 +65,7 @@ builder.Services.AddAuthentication(options =>
 .AddScheme<AuthenticationSchemeOptions, CustomBearerAuthenticationHandler>("Bearer", options => { });
 
 builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

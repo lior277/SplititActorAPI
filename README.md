@@ -1,19 +1,13 @@
 # SplititActorAPI
 
-Splitit Actor API is a simple API that allows you to split a string into a list of words.
+C# scraper Api to retrieve information about the top actors from IMDb Within RESTful API
 
 ## Project Title
 Splitit Actor API
 
 ## Description
-The Splitit Actor API is designed to take a string input and split it into individual
-words. This can be useful for text processing, search indexing, and other applications
-where word separation is needed.
 
 ## Features
-- Split a string into words
-- Handle various delimiters (spaces, punctuation, etc.)
-- Simple and easy-to-use API
 
 ## Getting Started
 

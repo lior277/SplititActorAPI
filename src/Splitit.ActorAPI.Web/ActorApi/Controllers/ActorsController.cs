@@ -43,7 +43,6 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
                 }
 
                 _logger.LogInformation("Scraping actors using provider: {Provider}", provider);
-
                 var actors = await selectedProvider.ScrapeActorsAsync();
 
                 _logger.LogInformation("Successfully scraped {Count}" +
@@ -94,6 +93,7 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
             if (actor == null)
             {
                 _logger.LogWarning("Actor with ID {Id} not found", id);
+
                 return NotFound(new { Message = "Actor not found." });
             }
 
@@ -162,6 +162,7 @@ namespace Splitit.ActorAPI.Web.ActorApi.Controllers
 
             _context.Actors.Remove(actor);
             _context.SaveChanges();
+
             return NoContent();
         }
     }

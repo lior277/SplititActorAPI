@@ -37,7 +37,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",  
-        Description = "Enter 'Bearer' followed by your token (e.g., Bearer abc123)."
+        Description = "Enter 'Bearer' followed by your token."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -54,7 +54,7 @@ builder.Services.AddSwaggerGen(options =>
                 Name = "Authorization",
                 In = ParameterLocation.Header
             },
-            Array.Empty<string>() // No specific scopes required
+            Array.Empty<string>() 
         }
     });
 });
@@ -67,9 +67,6 @@ builder.Services.AddAuthentication(options =>
 .AddScheme<AuthenticationSchemeOptions, CustomBearerAuthenticationHandler>("Bearer", options => { });
 
 builder.Services.AddHttpClient();
-
-builder.Services.AddApplicationServices(builder.Configuration);
-
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

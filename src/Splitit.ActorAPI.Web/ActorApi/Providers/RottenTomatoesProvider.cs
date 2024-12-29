@@ -1,32 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
+﻿
 
 public class RottenTomatoesProvider : IActorProvider
 {
     private readonly IPlaywrightService _playwrightService;
     private readonly ILogger<RottenTomatoesProvider> _logger;
+    private readonly string _rottenTomatoesUrl;
+    private const string _movieTitle = ".countdown-item .article_movie_title";
+    private const string _rankText = ".countdown-item .article_movie_title";
+    private const string _titleNode = "h2 a";
+    private const string _yearNode = "h2 span.subtle.start-year";
+    private const string _nextButtons = "a.post-page-numbers";
+    private const string _nextUrl = "href";
 
-    public RottenTomatoesProvider(IPlaywrightService playwrightService, ILogger<RottenTomatoesProvider> logger)
+    public RottenTomatoesProvider(IPlaywrightService playwrightService,
+        ILogger<RottenTomatoesProvider> logger, string rottenTomatoesUrl)
     {
         _playwrightService = playwrightService;
         _logger = logger;
+        _rottenTomatoesUrl = rottenTomatoesUrl;
     }
 
     public async Task<List<ActorModel>> ScrapeActorsAsync()
     {
         var actors = new List<ActorModel>();
-        const string baseUrl = "https://editorial.rottentomatoes.com/guide/best-movies-of-all-time/";
 
         try
         {
-            var page = await _playwrightService.GetPageAsync(baseUrl);
+            var page = await _playwrightService.GetPageAsync(_rottenTomatoesUrl);
 
             while (true)
             {
-                var movieNodes = await page.QuerySelectorAllAsync(".countdown-item .article_movie_title");
+                var movieNodes = await page.QuerySelectorAllAsync(_movieTitle);
 
                 if (movieNodes.Count == 0)
                 {
@@ -38,14 +42,13 @@ public class RottenTomatoesProvider : IActorProvider
                 {
                     try
                     {
-                        var rankText = await node.EvaluateAsync<string>(
-                            "el => el.closest('.countdown-item').querySelector('.countdown-index').textContent");
+                        var rankText = await node.EvaluateAsync<string>(_rankText);
                         var rank = int.Parse(rankText.Trim().Replace("#", string.Empty));
 
-                        var titleNode = await node.QuerySelectorAsync("h2 a");
+                        var titleNode = await node.QuerySelectorAsync(_titleNode);
                         var titleText = await titleNode?.InnerTextAsync() ?? "Unknown Title";
 
-                        var yearNode = await node.QuerySelectorAsync("h2 span.subtle.start-year");
+                        var yearNode = await node.QuerySelectorAsync(_yearNode);
                         var year = await yearNode?.InnerTextAsync();
 
                         actors.Add(new ActorModel
@@ -64,7 +67,7 @@ public class RottenTomatoesProvider : IActorProvider
                     }
                 }
 
-                var nextButtons = await page.QuerySelectorAllAsync("a.post-page-numbers");
+                var nextButtons = await page.QuerySelectorAllAsync(_nextButtons);
                 var navigatedToNextPage = false;
 
                 foreach (var button in nextButtons)
@@ -72,7 +75,8 @@ public class RottenTomatoesProvider : IActorProvider
                     var text = (await button.InnerTextAsync()).Trim();
                     if (text.Equals("Next", StringComparison.OrdinalIgnoreCase))
                     {
-                        var nextUrl = await button.GetAttributeAsync("href");
+                        var nextUrl = await button.GetAttributeAsync(_nextUrl);
+
                         if (!string.IsNullOrEmpty(nextUrl))
                         {
                             _logger.LogInformation("Navigating to next page: {NextUrl}", nextUrl);

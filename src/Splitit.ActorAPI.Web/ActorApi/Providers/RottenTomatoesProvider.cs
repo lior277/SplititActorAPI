@@ -6,7 +6,9 @@ public class RottenTomatoesProvider : IActorProvider
     private readonly ILogger<RottenTomatoesProvider> _logger;
     private readonly string _rottenTomatoesUrl;
     private const string _movieTitle = ".countdown-item .article_movie_title";
-    private const string _rankText = ".countdown-item .article_movie_title";
+    private const string _rankText = "el => el.closest('.countdown-item')" +
+        ".querySelector('.countdown-index').textContent";
+
     private const string _titleNode = "h2 a";
     private const string _yearNode = "h2 span.subtle.start-year";
     private const string _nextButtons = "a.post-page-numbers";

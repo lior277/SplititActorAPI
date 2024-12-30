@@ -26,4 +26,10 @@ time and reduce database load.
 
  implemented global authorization, allowing users to authenticate once
  and maintain their session across multiple requests.
+
+ ActorService: this could be
+ an ideal location for orchestrating more complex business logic related to actors.
+ For instance, validating the actors' data before saving or performing more advanced
+ filtering operations. Currently, the logic for scraping actors resides within the actor providers.
+
     

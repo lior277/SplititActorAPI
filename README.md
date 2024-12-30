@@ -32,4 +32,13 @@ time and reduce database load.
  For instance, validating the actors' data before saving or performing more advanced
  filtering operations. Currently, the logic for scraping actors resides within the actor providers.
 
+ update the layers
+ 1.Presentation Layer (API Layer)
+ 2. Service Layer (Business Logic Layer)
+ 3. Repository Layer (Data Access Layer)
+ 4.Data Layer
+ 5.External Service Layer (Web Scraping Providers)
+ 6.Utility Layer (Support Services, PlaywrightService, ILogger)
+ 
+
     

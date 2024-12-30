@@ -39,6 +39,11 @@ time and reduce database load.
  4.Data Layer
  5.External Service Layer (Web Scraping Providers)
  6.Utility Layer (Support Services, PlaywrightService, ILogger)
+
+
+  scrape data concurrently from multiple providers,
+  by using Task.WhenAll() or Parallel.ForEachAsync() to fire off
+ multiple scraping tasks in parallel, further improving performance.
  
 
     
